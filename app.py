@@ -1,17 +1,28 @@
 import json
 import logging
-from tweepy import StreamingClient
-from tweepy import StreamRule
-import hdfs
+import os
+import signal
+from tweepy import StreamingClient, StreamRule
+from hdfs import InsecureClient
 
-HDFS_OUTPUT_PATH = "tweets/streamed_tweets.json"
+HDFS_OUTPUT_PATH = "/tweets/streamed_tweets.json"
+HDFS_URL = "http://localhost:50070"
+BATCH_SIZE = 100
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("streaming.log"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger("TwitterStreamToHDFS")
 
 class HDFSStreamClient(StreamingClient):
-    def __init__(self, bearer_token, hdfs_path, batch_size=100):
+    def __init__(self, bearer_token, hdfs_client, hdfs_path, batch_size=BATCH_SIZE):
         super().__init__(bearer_token)
+        self.hdfs_client = hdfs_client
         self.hdfs_path = hdfs_path
         self.buffer = []
         self.batch_size = batch_size
@@ -19,17 +30,17 @@ class HDFSStreamClient(StreamingClient):
     def on_data(self, raw_data):
         try:
             tweet = json.loads(raw_data)
-            self.buffer.append(tweet)
-
-            if len(self.buffer) >= self.batch_size:
-                self.flush_to_hdfs()
+            if "data" in tweet:
+                self.buffer.append(tweet["data"])
+                if len(self.buffer) >= self.batch_size:
+                    self.flush_to_hdfs()
         except Exception as e:
             logger.error(f"Error processing tweet: {e}")
 
     def flush_to_hdfs(self):
         try:
             logger.info(f"Flushing {len(self.buffer)} tweets to HDFS...")
-            with hdfs.open(self.hdfs_path, "at") as hdfs_file:
+            with self.hdfs_client.write(self.hdfs_path, append=True, encoding="utf-8") as hdfs_file:
                 for tweet in self.buffer:
                     hdfs_file.write(json.dumps(tweet) + "\n")
             self.buffer = []
@@ -43,13 +54,22 @@ class HDFSStreamClient(StreamingClient):
         logger.error("Connection error!")
         self.disconnect()
 
+def shutdown_handler(signum, frame):
+    logger.info("Flushing data before exiting...")
+    client.flush_to_hdfs()
+    client.disconnect()
+    exit(0)
+
 if __name__ == "__main__":
     try:
-        BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAEE2xwEAAAAAqEZy6iHZxQ2EaHvq7rPQCikoDxs%3DtYB3diyMYd20sIlPwJQ9RosnlCKGdBdjshkq2MGqpsUoDokCZM"
-        client = HDFSStreamClient(BEARER_TOKEN, HDFS_OUTPUT_PATH)
+        signal.signal(signal.SIGINT, shutdown_handler)
+        BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
+
+        hdfs_client = InsecureClient(HDFS_URL)
+        client = HDFSStreamClient(BEARER_TOKEN, hdfs_client, HDFS_OUTPUT_PATH)
 
         logger.info("Adding streaming rules...")
-        
+
         space_keywords = (
             "space OR NASA OR astronomy OR cosmos OR rocket OR planet OR universe OR spacex "
             "OR stars OR galaxy OR black hole OR astrophysics OR exoplanet OR satellite "
@@ -62,20 +82,18 @@ if __name__ == "__main__":
             "OR planetary science OR space weather"
         )
 
-        try:
-            client.add_rules([StreamRule(value=space_keywords, tag="Space and Astronomy")])
-        except Exception as e:
-            logger.error(f"Error adding rules: {e}")
-            
-        logger.info("Starting Twitter stream...")
+        existing_rules = client.get_rules().data
+        if existing_rules:
+            rule_ids = [rule.id for rule in existing_rules]
+            client.delete_rules(rule_ids)
+
+        client.add_rules([StreamRule(value=space_keywords, tag="Space and Astronomy")])
         
+        logger.info("Starting Twitter stream...")
         client.filter(
             tweet_fields=["created_at", "author_id", "text"],
             expansions=["author_id"],
             languages=["en"]
         )
-
-    except KeyboardInterrupt:
-        logger.info("Streaming stopped by user.")
     except Exception as e:
         logger.error(f"Error in streaming: {e}")
