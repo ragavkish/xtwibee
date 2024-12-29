@@ -1,39 +1,30 @@
 import json
 import logging
-from tweepy import Stream, OAuthHandler
-from tweepy.streaming import StreamListener
+from tweepy import StreamingClient
+from tweepy import StreamRule
 import hdfs
-
-
 
 HDFS_OUTPUT_PATH = "tweets/streamed_tweets.json"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TwitterStreamToHDFS")
 
-class HDFSStreamListener(StreamListener):
-    def __init__(self, hdfs_path):
-        super().__init__()
+class HDFSStreamClient(StreamingClient):
+    def __init__(self, bearer_token, hdfs_path, batch_size=100):
+        super().__init__(bearer_token)
         self.hdfs_path = hdfs_path
         self.buffer = []
-        self.batch_size = 100
+        self.batch_size = batch_size
 
-    def on_data(self, data):
+    def on_data(self, raw_data):
         try:
-            tweet = json.loads(data)
+            tweet = json.loads(raw_data)
             self.buffer.append(tweet)
 
             if len(self.buffer) >= self.batch_size:
                 self.flush_to_hdfs()
-
-            return True
         except Exception as e:
             logger.error(f"Error processing tweet: {e}")
-            return True
-
-    def on_error(self, status_code):
-        logger.error(f"Streaming error: {status_code}")
-        return status_code != 420
 
     def flush_to_hdfs(self):
         try:
@@ -45,17 +36,45 @@ class HDFSStreamListener(StreamListener):
         except Exception as e:
             logger.error(f"Error writing to HDFS: {e}")
 
+    def on_errors(self, errors):
+        logger.error(f"Streaming error: {errors}")
+
+    def on_connection_error(self):
+        logger.error("Connection error!")
+        self.disconnect()
+
 if __name__ == "__main__":
     try:
-        auth = OAuthHandler(API_KEY, API_SECRET)
-        auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
+        BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAEE2xwEAAAAAqEZy6iHZxQ2EaHvq7rPQCikoDxs%3DtYB3diyMYd20sIlPwJQ9RosnlCKGdBdjshkq2MGqpsUoDokCZM"
+        client = HDFSStreamClient(BEARER_TOKEN, HDFS_OUTPUT_PATH)
 
-        listener = HDFSStreamListener(HDFS_OUTPUT_PATH)
+        logger.info("Adding streaming rules...")
+        
+        space_keywords = (
+            "space OR NASA OR astronomy OR cosmos OR rocket OR planet OR universe OR spacex "
+            "OR stars OR galaxy OR black hole OR astrophysics OR exoplanet OR satellite "
+            "OR orbital mechanics OR space telescope OR Mars OR Jupiter OR Milky Way OR ESA "
+            "OR cosmology OR gravity OR space science OR lunar OR solar system OR asteroid "
+            "OR comet OR spacecraft OR mission to Mars OR star formation OR space station "
+            "OR ISS OR space exploration OR astronaut OR rocket launch OR alien life "
+            "OR deep space OR Hubble OR James Webb OR JWST OR space debris OR interstellar "
+            "OR dark matter OR dark energy OR cosmic rays OR Kuiper Belt OR Oort Cloud "
+            "OR planetary science OR space weather"
+        )
 
+        try:
+            client.add_rules([StreamRule(value=space_keywords, tag="Space and Astronomy")])
+        except Exception as e:
+            logger.error(f"Error adding rules: {e}")
+            
         logger.info("Starting Twitter stream...")
-        stream = Stream(auth, listener)
+        
+        client.filter(
+            tweet_fields=["created_at", "author_id", "text"],
+            expansions=["author_id"],
+            languages=["en"]
+        )
 
-        stream.filter(track=["Python", "Big Data", "Hadoop"], languages=["en"])
     except KeyboardInterrupt:
         logger.info("Streaming stopped by user.")
     except Exception as e:
