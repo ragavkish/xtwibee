@@ -26,7 +26,7 @@ while True:
         cv2.putText(frame, str(emotion), (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
         cv2.rectangle(frame, (x, y), (x+w, y+h), (36,255,12), 2)
 
-    cv2.imshow('Emotion Detection', frame)
+    cv2.imshow('xtwibee', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
