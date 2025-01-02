@@ -7,9 +7,9 @@ from tensorflow.keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-train_dir = r"Z:\kizX\dataset\xtwibee\processed\train"
-test_dir = r"Z:\kizX\dataset\xtwibee\processed\test"
-model_output_path = r"Z:\kizX\projectz\xtwibee\xtwibee.h5"
+train_dir = r"Z:/kizX/dataset/xtwibee/processed/train"
+test_dir = r"Z:/kizX/dataset/xtwibee/processed/test"
+model_output_path = r"Z:/kizX/projectz/xtwibee/xtwibee.h5"
 
 def load_data(data_dir):
     data = np.load(os.path.join(data_dir, "data.npy"))
