@@ -2,8 +2,6 @@ import cv2
 import tensorflow as tf
 import numpy as np
 import time
-import threading
-import queue
 import logging
 
 MODEL_PATH = 'xtwibee.h5'
@@ -12,7 +10,6 @@ INPUT_SIZE = (48, 48)
 EMOTION_LABELS = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
 
 def load_model(path):
     try:
@@ -23,7 +20,6 @@ def load_model(path):
         logging.error(f"Error loading model: {e}")
         exit()
 
-
 def preprocess_face(face):
     try:
         face = cv2.resize(face, INPUT_SIZE) / 255.0
@@ -32,13 +28,11 @@ def preprocess_face(face):
         logging.error(f"Error preprocessing face: {e}")
         return None
 
-
 def draw_frame(frame, faces, predictions):
     for (x, y, w, h), (emotion, confidence) in zip(faces, predictions):
         label_position = (x, y - 10 if y - 10 > 10 else y + 10)
         cv2.putText(frame, f"{emotion} ({confidence:.2f})", label_position, cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
         cv2.rectangle(frame, (x, y), (x + w, y + h), (36, 255, 12), 2)
-
 
 def detect_and_predict(frame, face_cascade, model):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -55,28 +49,8 @@ def detect_and_predict(frame, face_cascade, model):
             predictions.append((emotion, confidence))
         else:
             predictions.append(("Unknown", 0.0))
-
+    
     return faces, predictions
-
-
-class FrameProcessor:
-    def __init__(self, face_cascade, model):
-        self.face_cascade = face_cascade
-        self.model = model
-        self.input_queue = queue.Queue(maxsize=1)
-        self.output_queue = queue.Queue(maxsize=1)
-        self.running = True
-
-    def process_frames(self):
-        while self.running:
-            if not self.input_queue.empty():
-                frame = self.input_queue.get()
-                faces, predictions = detect_and_predict(frame, self.face_cascade, self.model)
-                self.output_queue.put((frame, faces, predictions))
-
-    def stop(self):
-        self.running = False
-
 
 def main():
     model = load_model(MODEL_PATH)
@@ -90,13 +64,9 @@ def main():
         logging.error("Error: Unable to access the webcam.")
         exit()
 
-    processor = FrameProcessor(face_cascade, model)
-    processing_thread = threading.Thread(target=processor.process_frames)
-    processing_thread.start()
-
     logging.info("Press 'q' to exit.")
-    prev_time = time.time()
 
+    prev_time = time.time()
     try:
         while True:
             ret, frame = cap.read()
@@ -104,12 +74,8 @@ def main():
                 logging.warning("Failed to capture frame.")
                 break
 
-            if not processor.input_queue.full():
-                processor.input_queue.put(frame)
-
-            if not processor.output_queue.empty():
-                frame, faces, predictions = processor.output_queue.get()
-                draw_frame(frame, faces, predictions)
+            faces, predictions = detect_and_predict(frame, face_cascade, model)
+            draw_frame(frame, faces, predictions)
 
             current_time = time.time()
             fps = 1 / (current_time - prev_time)
@@ -122,12 +88,9 @@ def main():
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     finally:
-        processor.stop()
-        processing_thread.join()
         cap.release()
         cv2.destroyAllWindows()
         logging.info("Application closed.")
-
 
 if __name__ == "__main__":
     main()
