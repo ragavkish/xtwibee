@@ -1,8 +1,0 @@
-2024-12-29 13:13:31,484 - INFO - Instantiated <InsecureClient(url='http://localhost:50070')>.
-2024-12-29 13:13:31,484 - INFO - Adding streaming rules...
-2024-12-29 13:13:32,469 - ERROR - Error in streaming: 401 Unauthorized
-Unauthorized
-2024-12-29 13:16:27,612 - INFO - Instantiated <InsecureClient(url='http://localhost:50070')>.
-2024-12-29 13:16:27,612 - INFO - Adding streaming rules...
-2024-12-29 13:16:28,576 - ERROR - Error in streaming: 401 Unauthorized
-Unauthorized
