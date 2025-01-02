@@ -4,7 +4,7 @@ import numpy as np
 
 model = tf.keras.models.load_model('xtwibee.h5')
 
-emotion_labels = ["Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]
+emotion_labels = ['angry' 'disgust' 'fear' 'happy' 'neutral' 'sad' 'surprise']
 
 cap = cv2.VideoCapture(0)
 
