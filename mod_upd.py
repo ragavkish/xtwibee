@@ -2,25 +2,28 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.keras.models import load_model # type: ignore
-from tensorflow.keras.utils import to_categorical # type: ignore
+from tensorflow.keras.models import load_model #type:ignore
+from tensorflow.keras.utils import to_categorical #type:ignore
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from tensorflow.keras.callbacks import EarlyStopping # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping #type:ignore
+import shutil
 
 train_data_dir = r"Z:/kizX/dataset/xtwibee/set-2/train"
 test_data_dir = r"Z:/kizX/dataset/xtwibee/set-2/test"
 train_labels_file = r"Z:/kizX/dataset/xtwibee/set-2/train_labels.csv"
 test_labels_file = r"Z:/kizX/dataset/xtwibee/set-2/test_labels.csv"
 model_path = r"Z:/kizX/projectz/xtwibee/xtwibee.h5"
-new_model_path = r"Z:/kizX/projectz/xtwibee/xtwibee_finetuned.h5"
+backup_model_path = r"Z:/kizX/projectz/xtwibee/xtwibee_backup.h5"
+fine_tuned_model_path = r"Z:/kizX/projectz/xtwibee/xtwibee_finetuned.h5"
+
+shutil.copy(model_path, backup_model_path)
+print(f"Backup created at {backup_model_path}")
 
 def load_data(data_dir, label_file):
     data = np.load(os.path.join(data_dir, "data.npy"))
-    
     labels_df = pd.read_csv(label_file)
     labels = labels_df['label'].values
-    
     return data, labels
 
 train_data, train_labels = load_data(train_data_dir, train_labels_file)
@@ -64,5 +67,8 @@ history = model.fit(
 test_loss, test_accuracy = model.evaluate(test_data, test_labels_onehot, verbose=1)
 print(f"Updated Test Accuracy: {test_accuracy:.2f}")
 
-model.save(new_model_path)
-print(f"Model fine-tuned and saved at {new_model_path}")
+model.save(fine_tuned_model_path)
+print(f"Fine-tuned model saved at {fine_tuned_model_path}")
+
+shutil.copy(fine_tuned_model_path, model_path)
+print(f"Original model updated with fine-tuned model at {model_path}")
