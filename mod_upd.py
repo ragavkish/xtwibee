@@ -2,11 +2,11 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.keras.models import load_model #type:ignore
-from tensorflow.keras.utils import to_categorical #type:ignore
+from tensorflow.keras.models import load_model  # type: ignore
+from tensorflow.keras.utils import to_categorical  # type: ignore
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from tensorflow.keras.callbacks import EarlyStopping #type:ignore
+from tensorflow.keras.callbacks import EarlyStopping  # type: ignore
 import shutil
 
 train_data_dir = r"Z:/kizX/dataset/xtwibee/set-2/train"
@@ -20,8 +20,10 @@ fine_tuned_model_path = r"Z:/kizX/projectz/xtwibee/xtwibee_finetuned.h5"
 shutil.copy(model_path, backup_model_path)
 print(f"Backup created at {backup_model_path}")
 
-def load_data(data_dir, label_file):
-    data = np.load(os.path.join(data_dir, "data.npy"))
+def load_data(data_dir, label_file, processed_folder="processed"):
+    file_path = os.path.join(data_dir, processed_folder, "data.npy")
+    print(f"Loading data from: {file_path}")
+    data = np.load(file_path)
     labels_df = pd.read_csv(label_file)
     labels = labels_df['label'].values
     return data, labels
@@ -49,9 +51,11 @@ X_train, X_val, y_train, y_val = train_test_split(
 
 model = load_model(model_path)
 
-model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), 
-              loss='categorical_crossentropy', 
-              metrics=['accuracy'])
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
 
 early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
 
