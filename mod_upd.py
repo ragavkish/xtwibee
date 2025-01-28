@@ -9,8 +9,8 @@ from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.callbacks import EarlyStopping  # type: ignore
 import shutil
 
-train_data_dir = r"Z:/kizX/dataset/xtwibee/set-2/train"
-test_data_dir = r"Z:/kizX/dataset/xtwibee/set-2/test"
+processed_train_dir = r"Z:/kizX/dataset/xtwibee/set-2/processed/train"
+processed_test_dir = r"Z:/kizX/dataset/xtwibee/set-2/processed/test"
 train_labels_file = r"Z:/kizX/dataset/xtwibee/set-2/train_labels.csv"
 test_labels_file = r"Z:/kizX/dataset/xtwibee/set-2/test_labels.csv"
 model_path = r"Z:/kizX/projectz/xtwibee/xtwibee.h5"
@@ -20,16 +20,16 @@ fine_tuned_model_path = r"Z:/kizX/projectz/xtwibee/xtwibee_finetuned.h5"
 shutil.copy(model_path, backup_model_path)
 print(f"Backup created at {backup_model_path}")
 
-def load_data(data_dir, label_file, processed_folder="processed"):
-    file_path = os.path.join(data_dir, processed_folder, "data.npy")
+def load_data(data_dir, label_file):
+    file_path = os.path.join(data_dir, "data.npy")
     print(f"Loading data from: {file_path}")
     data = np.load(file_path)
     labels_df = pd.read_csv(label_file)
     labels = labels_df['label'].values
     return data, labels
 
-train_data, train_labels = load_data(train_data_dir, train_labels_file)
-test_data, test_labels = load_data(test_data_dir, test_labels_file)
+train_data, train_labels = load_data(processed_train_dir, train_labels_file)
+test_data, test_labels = load_data(processed_test_dir, test_labels_file)
 
 train_data = train_data.astype('float32') / 255.0
 test_data = test_data.astype('float32') / 255.0
